@@ -41,6 +41,14 @@ export function NameList({ names }: NameListProps) {
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  const removeName = (indexToRemove: number) => {
+    setHistory(prev => {
+      const newHistory = prev.filter((_, idx) => idx !== indexToRemove);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
+      return newHistory;
+    });
+  };
+
   const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
@@ -118,14 +126,23 @@ export function NameList({ names }: NameListProps) {
                 )}
               </div>
               
-              <button
-                id={`btn-copy-name-${idx}`}
-                onClick={() => copyToClipboard(name.singular, idx)}
-                className="p-2.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-                title="Copy to clipboard"
-              >
-                {copiedIndex === idx ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => removeName(idx)}
+                  className="p-2.5 text-gray-500 hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors"
+                  title="Remove from history"
+                >
+                  <Trash2 size={18} />
+                </button>
+                <button
+                  id={`btn-copy-name-${idx}`}
+                  onClick={() => copyToClipboard(name.singular, idx)}
+                  className="p-2.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                  title="Copy to clipboard"
+                >
+                  {copiedIndex === idx ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
+                </button>
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>

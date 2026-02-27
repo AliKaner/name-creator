@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PRESETS } from "@/lib/presets";
-import { GeneratedName, OverrideProfile } from "@/lib/types";
+import { GeneratedName, OverrideProfile, LanguageProfile } from "@/lib/types";
 import { PresetCard } from "@/components/PresetCard";
 import { ToneSliders } from "@/components/ToneSliders";
 import { NameList } from "@/components/NameList";
@@ -22,10 +22,71 @@ export default function Home() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [customConsonants, setCustomConsonants] = useState("");
   const [customVowels, setCustomVowels] = useState("");
+  const [customPresetName, setCustomPresetName] = useState("");
+  const [customPresets, setCustomPresets] = useState<Record<string, LanguageProfile>>({});
+
+  // Load custom presets on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("aetheria_custom_presets");
+    if (saved) {
+      try {
+        setCustomPresets(JSON.parse(saved));
+      } catch(e) { console.error(e); }
+    }
+  }, []);
+
+  const allPresets = { ...PRESETS, ...customPresets };
 
   const handlePresetSelect = (id: string) => {
-    setSelectedPresetId(id);
-    setOverrideTone({ ...PRESETS[id].tone });
+    const profile = allPresets[id];
+    if (profile) {
+      setSelectedPresetId(id);
+      setOverrideTone({ ...profile.tone });
+      // Clear custom phoneme inputs when switching presets
+      setCustomConsonants(profile.phonemes.consonants && id.startsWith("custom_") 
+        ? profile.phonemes.consonants.join(", ") 
+        : "");
+      setCustomVowels(profile.phonemes.vowels && id.startsWith("custom_") 
+        ? profile.phonemes.vowels.join(", ") 
+        : "");
+    }
+  };
+
+  const handleDeleteCustomPreset = (id: string) => {
+    const updatedPresets = { ...customPresets };
+    delete updatedPresets[id];
+    setCustomPresets(updatedPresets);
+    localStorage.setItem("aetheria_custom_presets", JSON.stringify(updatedPresets));
+    if (selectedPresetId === id) {
+      handlePresetSelect("noble");
+    }
+  };
+
+  const handleSaveCustomPreset = () => {
+    if (!customPresetName.trim()) return;
+    
+    const baseProfile = allPresets[selectedPresetId];
+    const newId = `custom_${Date.now()}`;
+    
+    const newProfile: LanguageProfile = {
+      ...baseProfile,
+      id: newId,
+      name: customPresetName.trim(),
+      tone: { ...overrideTone },
+    };
+
+    if (customConsonants.trim()) {
+      newProfile.phonemes = { ...newProfile.phonemes, consonants: customConsonants.split(",").map(s => s.trim()) };
+    }
+    if (customVowels.trim()) {
+      newProfile.phonemes = { ...newProfile.phonemes, vowels: customVowels.split(",").map(s => s.trim()) };
+    }
+
+    const updatedPresets = { ...customPresets, [newId]: newProfile };
+    setCustomPresets(updatedPresets);
+    localStorage.setItem("aetheria_custom_presets", JSON.stringify(updatedPresets));
+    setSelectedPresetId(newId);
+    setCustomPresetName("");
   };
 
   const handleGenerate = async () => {
@@ -90,16 +151,18 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-white">Select Origin</h2>
                 <span className="text-xs text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20 font-medium tracking-wide">
-                  {Object.keys(PRESETS).length} PRESETS
+                  {Object.keys(allPresets).length} PRESETS
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-                {Object.values(PRESETS).map(preset => (
+              <div className="grid grid-cols-1 gap-3">
+                {Object.values(allPresets).map(preset => (
                   <PresetCard
                     key={preset.id}
                     preset={preset}
                     isSelected={selectedPresetId === preset.id}
                     onClick={() => handlePresetSelect(preset.id)}
+                    isCustom={preset.id.startsWith("custom_")}
+                    onDelete={preset.id.startsWith("custom_") ? () => handleDeleteCustomPreset(preset.id) : undefined}
                   />
                 ))}
               </div>
@@ -149,6 +212,25 @@ export default function Home() {
                          value={customVowels}
                          onChange={(e) => setCustomVowels(e.target.value)}
                        />
+                     </div>
+                     <div className="pt-4 border-t border-white/5 space-y-3">
+                       <label className="block text-sm text-gray-400">Save Configuration</label>
+                       <div className="flex gap-2">
+                         <input 
+                           type="text" 
+                           className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500" 
+                           placeholder="Preset Name"
+                           value={customPresetName}
+                           onChange={(e) => setCustomPresetName(e.target.value)}
+                         />
+                         <button
+                           onClick={handleSaveCustomPreset}
+                           disabled={!customPresetName.trim()}
+                           className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                         >
+                           Save Preset
+                         </button>
+                       </div>
                      </div>
                   </motion.div>
                 )}
