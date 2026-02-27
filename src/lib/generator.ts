@@ -14,9 +14,9 @@ export function deepMerge<T extends Record<string, any>>(target: T, source?: Rec
         !Array.isArray(source[key]) && 
         source[key] !== null
       ) {
-        output[key as keyof T] = deepMerge(target[key] as Record<string, any>, source[key]);
+        output[key as keyof T] = deepMerge(target[key] as Record<string, any>, source[key]) as any;
       } else {
-        output[key as keyof T] = source[key];
+        output[key as keyof T] = source[key] as any;
       }
     }
   }
